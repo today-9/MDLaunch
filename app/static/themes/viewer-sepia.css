@@ -1,0 +1,16 @@
+/* name: セピア */
+:root {
+  --text: #43382a;
+  --text-light: rgba(67, 56, 42, 0.7);
+  --text-faint: rgba(67, 56, 42, 0.45);
+  --bg: #f6efdf;
+  --side-bg: #efe5cd;
+  --hover: rgba(67, 56, 42, 0.07);
+  --active: rgba(67, 56, 42, 0.12);
+  --border: rgba(67, 56, 42, 0.16);
+  --accent: #a05f2c;
+  --accent-bg: rgba(160, 95, 44, 0.1);
+  --code-bg: #efe7d2;
+  --pill-bg: rgba(67, 56, 42, 0.09);
+}
+#topbar { background: rgba(246, 239, 223, 0.85); }

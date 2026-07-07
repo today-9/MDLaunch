@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MDLaunch</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗂️</text></svg>">
+<link rel="stylesheet" href="/static/style.css?v=9">
+<link rel="stylesheet" href="/static/pygments.css?v=4">
+<link rel="stylesheet" href="/static/vendor/katex/katex.min.css">
+<link id="viewer-theme-css" rel="stylesheet" href="/static/themes/viewer-light.css">
+<link id="pdf-theme-css" rel="stylesheet" media="print" href="/static/themes/pdf-standard.css">
+</head>
+<body>
+<div id="offline-banner" hidden>⚠️ サーバーに接続できません — MDLaunch.bat(サーバーの黒いウィンドウ)が起動しているか確認してください</div>
+<div id="app">
+  <aside id="sidebar">
+    <div class="ws-header">
+      <span class="ws-icon">🗂️</span>
+      <span class="ws-name">MDLaunch</span>
+    </div>
+
+    <button id="search-btn" class="side-item search-trigger">
+      <span class="side-icon">🔍</span> 検索
+      <kbd>Ctrl K</kbd>
+    </button>
+    <button id="home-btn" class="side-item">
+      <span class="side-icon">🏠</span> ホーム
+    </button>
+    <button id="new-btn" class="side-item accent">
+      <span class="side-icon">＋</span> 新規ノート
+    </button>
+
+    <div class="side-section">
+      <div class="side-label">ページ</div>
+      <div id="tree"></div>
+    </div>
+
+    <div class="side-section">
+      <div class="side-label">タグ</div>
+      <div id="tag-list"></div>
+    </div>
+
+    <div class="side-section">
+      <div class="side-label">テーマ</div>
+      <div class="theme-row"><span>画面</span><select id="viewer-theme-sel"></select></div>
+      <div class="theme-row"><span>PDF</span><select id="pdf-theme-sel"></select></div>
+    </div>
+
+    <div class="side-footer">
+      <span id="note-count"></span>
+      <button id="quit-btn" title="サーバーを終了する">⏻ 終了</button>
+    </div>
+  </aside>
+
+  <main id="main">
+    <div id="topbar">
+      <div id="breadcrumb"></div>
+      <button id="pdf-btn" class="topbar-btn" hidden>PDF に保存</button>
+      <button id="edit-btn" class="topbar-btn" hidden>VSCode で編集</button>
+    </div>
+    <div id="content"></div>
+  </main>
+</div>
+
+<!-- Ctrl+K 検索パレット -->
+<div id="palette-overlay" hidden>
+  <div id="palette">
+    <div class="palette-input-row">
+      <span class="palette-glass">🔍</span>
+      <input id="palette-input" type="text" placeholder="ノートを検索…" autocomplete="off">
+    </div>
+    <div id="palette-results"></div>
+  </div>
+</div>
+
+<!-- 新規ノートダイアログ -->
+<div id="new-overlay" hidden>
+  <div id="new-dialog">
+    <h3>新規ノート</h3>
+    <label>タイトル<input id="new-title" type="text" placeholder="ノートのタイトル"></label>
+    <label>フォルダ(任意)<input id="new-folder" type="text" placeholder="例: projects/mdlaunch"></label>
+    <label>タグ(カンマ区切り・任意)<input id="new-tags" type="text" placeholder="例: memo, idea"></label>
+    <div class="dialog-actions">
+      <button id="new-cancel" class="btn">キャンセル</button>
+      <button id="new-create" class="btn primary">作成して VSCode で開く</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/static/vendor/mermaid.min.js"></script>
+<script src="/static/vendor/katex/katex.min.js"></script>
+<script src="/static/app.js?v=9"></script>
+</body>
+</html>

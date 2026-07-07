@@ -1,0 +1,17 @@
+/* name: コンパクト */
+@media print {
+  .page-icon { display: none; }
+  .page-title { font-size: 20px; margin-bottom: 10px; }
+  .md { font-size: 11.5px; line-height: 1.45; }
+  .md h1 { font-size: 16px; }
+  .md h2 { font-size: 14.5px; }
+  .md h3, .md h4 { font-size: 12.5px; }
+  .md h1, .md h2, .md h3, .md h4 { margin: 1.1em 0 0.25em; }
+  .md p { margin: 0.3em 0; }
+  .md ul, .md ol { margin: 0.3em 0; }
+  .md pre, .md .codehilite, .md pre > code {
+    font-size: 10px; line-height: 1.4; padding: 8px 10px;
+  }
+  .md table { font-size: 10.5px; }
+  .md th, .md td { padding: 3px 6px; }
+}

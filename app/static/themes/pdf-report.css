@@ -1,0 +1,20 @@
+/* name: レポート(明朝) */
+@media print {
+  #content {
+    font-family: "Yu Mincho", "游明朝", "Hiragino Mincho ProN", "MS PMincho", serif;
+  }
+  .page-icon { display: none; }
+  .page-title {
+    font-size: 26pt; font-weight: 600;
+    border-bottom: 2px solid #333;
+    padding-bottom: 10px; margin-bottom: 24px;
+    letter-spacing: 0.02em;
+  }
+  .md { font-size: 11.5pt; line-height: 2.0; text-align: justify; }
+  .md h1, .md h2, .md h3, .md h4 { font-weight: 600; letter-spacing: 0.02em; }
+  .md h2 { border-bottom: 1px solid #999; padding-bottom: 4px; }
+  .md blockquote { font-style: normal; }
+  .md pre, .md .codehilite, .md code {
+    font-family: "Cascadia Code", Consolas, monospace;
+  }
+}
