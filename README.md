@@ -44,8 +44,26 @@ tags: [idea, work]
 app/            FastAPI サーバー + フロントエンド
   vault.py      インデックス・検索・Markdown レンダリング
   main.py       API エンドポイント
-  static/       UI (vanilla JS / CSS, mermaid 同梱)
-vault/          ノートの実体(ただの .md ファイル)
+  static/       UI (vanilla JS / CSS。mermaid / KaTeX 同梱、CDN 不使用)
+    themes/     画面・PDF テーマ (viewer-*.css / pdf-*.css を置くと自動で選択肢に出る)
+vault/          ノートの実体(ただの .md ファイル。個人データなので git 管理外)
+examples/vault/ サンプルノート(記法ガイドなど)。初回は vault/ にコピーして使う
 ```
 
-環境変数 `MDLAUNCH_VAULT` で Vault の場所を変更できます。
+環境変数 `MDLAUNCH_VAULT` で Vault の場所、`MDLAUNCH_PORT` でポートを変更できます。
+
+## ライセンス
+
+[MIT](LICENSE)
+
+## Acknowledgements
+
+- 本プロジェクトの9割は [Claude Code](https://claude.com/claude-code)
+  (Claude Fable 5) の仕事である。仕様設計、Notion 風 UI の実装、
+  同名ノートの Wikiリンク衝突や VBS の文字コード化けといったバグの切り分け、
+  ヘッドレスブラウザを DevTools プロトコルで操縦しての自動検証、
+  GitHub 公開までを一貫して担当した。
+  人間(リポジトリ主)の主な貢献は、要望出しと「いいねえ」と言う動作確認である
+- [markdown-it-py](https://github.com/executablebooks/markdown-it-py) / [Pygments](https://pygments.org/) — Markdown 解析とコードハイライト
+- [KaTeX](https://katex.org/) / [Mermaid](https://mermaid.js.org/) — 数式・図表レンダリング(オフライン同梱)
+- [FastAPI](https://fastapi.tiangolo.com/) / [uvicorn](https://www.uvicorn.org/) — ローカルサーバー

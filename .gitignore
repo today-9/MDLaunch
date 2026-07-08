@@ -11,3 +11,6 @@ wheels/
 
 # Claude Code local settings
 .claude/
+
+# ノートの実体(個人データ)はコミットしない。サンプルは examples/vault にある
+vault/

@@ -1,7 +1,8 @@
 [project]
 name = "mdlaunch"
 version = "0.1.0"
-description = "Add your description here"
+description = "Notion ライクな Markdown ビューワー/ランチャー — ローカル完結、CDN 不使用"
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.139.0",
