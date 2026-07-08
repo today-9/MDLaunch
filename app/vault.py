@@ -267,7 +267,9 @@ class Vault:
 
     def create_note(self, title: str, folder: str = "", tags: list[str] | None = None) -> str:
         safe = re.sub(r'[\\/:*?"<>|]', "-", title).strip() or "Untitled"
-        target_dir = (self.root / folder) if folder else self.root
+        target_dir = (self.root / folder).resolve() if folder else self.root
+        if not target_dir.is_relative_to(self.root):
+            raise ValueError("folder is outside the vault")
         target_dir.mkdir(parents=True, exist_ok=True)
         path = target_dir / f"{safe}.md"
         n = 1

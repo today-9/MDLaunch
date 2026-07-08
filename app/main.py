@@ -12,7 +12,8 @@ import webbrowser
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -35,6 +36,18 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="MDLaunch", lifespan=lifespan)
 vault = Vault(VAULT_DIR)
+
+@app.middleware("http")
+async def block_cross_origin_writes(request: Request, call_next):
+    # 外部サイトのフォーム送信等による CSRF を遮断する。
+    # 同一オリジンのブラウザは「http://<自分の Host>」を Origin として送り、
+    # curl 等のローカルツールは Origin を送らない — どちらも許可し、それ以外の Origin は拒否
+    if request.method == "POST":
+        origin = request.headers.get("origin")
+        same_origin = f"http://{request.headers.get('host', '')}"
+        if origin and origin != same_origin:
+            return JSONResponse({"detail": "cross-origin request blocked"}, status_code=403)
+    return await call_next(request)
 
 
 class NewNote(BaseModel):
@@ -66,7 +79,10 @@ def get_note(path: str):
 
 @app.post("/api/new")
 def new_note(req: NewNote):
-    rel = vault.create_note(req.title, req.folder, req.tags)
+    try:
+        rel = vault.create_note(req.title, req.folder, req.tags)
+    except ValueError:
+        raise HTTPException(400, "フォルダは Vault 内を指定してください")
     vault.open_in_vscode(rel)
     return {"path": rel}
 
