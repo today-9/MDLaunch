@@ -37,6 +37,16 @@ def _iter_wikilinks_outside_code(text: str):
             yield from WIKILINK_RE.finditer(p)
 
 
+def seed_vault(vault_dir: Path, examples_dir: Path) -> bool:
+    """Vault にノートが1つもなければ examples の内容を種として撒く"""
+    if not examples_dir.is_dir():
+        return False
+    if vault_dir.exists() and any(vault_dir.rglob("*.md")):
+        return False
+    shutil.copytree(examples_dir, vault_dir, dirs_exist_ok=True)
+    return True
+
+
 @dataclass
 class Note:
     rel_path: str          # vault からの相対パス (posix, .md 付き)
@@ -249,6 +259,16 @@ class Vault:
 
     def tree(self) -> dict:
         root: dict = {"folders": {}, "notes": []}
+        # 実ディレクトリを先に登録する(ノートが1つもない空フォルダも見えるように)
+        for p in sorted(self.root.rglob("*")):
+            if not p.is_dir():
+                continue
+            rel_parts = p.relative_to(self.root).parts
+            if any(part.startswith(".") for part in rel_parts):
+                continue
+            node = root
+            for part in rel_parts:
+                node = node["folders"].setdefault(part, {"folders": {}, "notes": []})
         for note in sorted(self.notes.values(), key=lambda n: n.title.lower()):
             node = root
             for part in Path(note.rel_path).parts[:-1]:
@@ -283,6 +303,13 @@ class Vault:
         )
         self.refresh()
         return path.relative_to(self.root).as_posix()
+
+    def create_folder(self, folder: str) -> str:
+        target = (self.root / folder.strip()).resolve()
+        if not folder.strip() or not target.is_relative_to(self.root) or target == self.root:
+            raise ValueError("invalid folder")
+        target.mkdir(parents=True, exist_ok=True)
+        return target.relative_to(self.root).as_posix()
 
     def open_in_vscode(self, rel: str) -> None:
         path = (self.root / rel).resolve()

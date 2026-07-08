@@ -46,6 +46,11 @@ const api = {
     body: JSON.stringify(body),
   }),
   open: (path) => fetchJSON(`/api/open?path=${encodeURIComponent(path)}`, { method: "POST" }),
+  newFolder: (folder) => fetchJSON("/api/newfolder", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ folder }),
+  }),
   shutdown: () => fetchJSON("/api/shutdown", { method: "POST" }),
   themes: () => fetchJSON("/api/themes"),
 };
@@ -464,6 +469,38 @@ async function createNote() {
     showNote(path);
   } catch { /* オフライン時はバナー表示のみ */ }
 }
+
+/* ---------- 新規フォルダ ---------- */
+const folderOverlay = $("#folder-overlay");
+
+function openFolderDialog() {
+  folderOverlay.hidden = false;
+  $("#folder-name").value = "";
+  $("#folder-name").focus();
+}
+function closeFolderDialog() { folderOverlay.hidden = true; }
+
+async function createFolder() {
+  const folder = $("#folder-name").value.trim();
+  if (!folder) { $("#folder-name").focus(); return; }
+  try {
+    await api.newFolder(folder);
+    closeFolderDialog();
+    await refreshSidebar();
+    toast(`フォルダ「${folder}」を作成しました`);
+  } catch {
+    toast("フォルダを作成できませんでした");
+  }
+}
+
+$("#new-folder-btn").addEventListener("click", openFolderDialog);
+$("#folder-cancel").addEventListener("click", closeFolderDialog);
+$("#folder-create").addEventListener("click", createFolder);
+folderOverlay.addEventListener("click", (e) => { if (e.target === folderOverlay) closeFolderDialog(); });
+folderOverlay.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.tagName === "INPUT") createFolder();
+  if (e.key === "Escape") closeFolderDialog();
+});
 
 $("#new-cancel").addEventListener("click", closeNewDialog);
 $("#new-create").addEventListener("click", createNote);

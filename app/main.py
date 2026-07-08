@@ -19,11 +19,15 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
-from .vault import Vault
+from .vault import Vault, seed_vault
 
 VAULT_DIR = Path(os.environ.get("MDLAUNCH_VAULT", Path(__file__).parent.parent / "vault"))
 STATIC_DIR = Path(__file__).parent / "static"
 PORT = os.environ.get("MDLAUNCH_PORT", "8321")
+
+# 既定 Vault が空のとき(clone 直後の初回起動)はサンプルを種として撒く
+if "MDLAUNCH_VAULT" not in os.environ:
+    seed_vault(VAULT_DIR, Path(__file__).parent.parent / "examples" / "vault")
 
 
 @asynccontextmanager
@@ -56,6 +60,10 @@ class NewNote(BaseModel):
     tags: list[str] = []
 
 
+class NewFolder(BaseModel):
+    folder: str
+
+
 @app.get("/api/tree")
 def get_tree():
     vault.refresh()
@@ -85,6 +93,15 @@ def new_note(req: NewNote):
         raise HTTPException(400, "フォルダは Vault 内を指定してください")
     vault.open_in_vscode(rel)
     return {"path": rel}
+
+
+@app.post("/api/newfolder")
+def new_folder(req: NewFolder):
+    try:
+        folder = vault.create_folder(req.folder)
+    except (ValueError, OSError):
+        raise HTTPException(400, "フォルダ名が不正か、Vault の外を指しています")
+    return {"folder": folder}
 
 
 @app.post("/api/open")

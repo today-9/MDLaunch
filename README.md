@@ -47,7 +47,7 @@ app/            FastAPI サーバー + フロントエンド
   static/       UI (vanilla JS / CSS。mermaid / KaTeX 同梱、CDN 不使用)
     themes/     画面・PDF テーマ (viewer-*.css / pdf-*.css を置くと自動で選択肢に出る)
 vault/          ノートの実体(ただの .md ファイル。個人データなので git 管理外)
-examples/vault/ サンプルノート(記法ガイドなど)。初回は vault/ にコピーして使う
+examples/vault/ サンプルノート(記法ガイドなど)。vault/ が空の初回起動時に自動コピーされる
 ```
 
 環境変数 `MDLAUNCH_VAULT` で Vault の場所、`MDLAUNCH_PORT` でポートを変更できます。
