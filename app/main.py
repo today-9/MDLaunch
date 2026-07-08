@@ -201,7 +201,8 @@ def shutdown():
 
 @app.get("/")
 def index():
-    return FileResponse(STATIC_DIR / "index.html")
+    # index.html が古いままキャッシュされると新機能のボタン等が出ないため、毎回再検証させる
+    return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
