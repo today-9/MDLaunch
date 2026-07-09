@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MDLaunch</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗂️</text></svg>">
-<link rel="stylesheet" href="/static/style.css?v=10">
+<link rel="stylesheet" href="/static/style.css?v=11">
 <link rel="stylesheet" href="/static/pygments.css?v=4">
 <link rel="stylesheet" href="/static/vendor/katex/katex.min.css">
 <link id="viewer-theme-css" rel="stylesheet" href="/static/themes/viewer-light.css">
@@ -44,17 +44,29 @@
       <div id="tag-list"></div>
     </div>
 
-    <div class="side-section">
-      <div class="side-label">テーマ</div>
-      <div class="theme-row"><span>画面</span><select id="viewer-theme-sel"></select></div>
-      <div class="theme-row"><span>PDF</span><select id="pdf-theme-sel"></select></div>
-    </div>
-
     <div class="side-footer">
       <span id="note-count"></span>
-      <button id="quit-btn" title="サーバーを終了する">⏻ 終了</button>
+      <span class="footer-actions">
+        <button id="settings-btn" title="設定">⚙</button>
+        <button id="quit-btn" title="サーバーを終了する">⏻ 終了</button>
+      </span>
     </div>
   </aside>
+
+  <!-- 設定ポップオーバー -->
+  <div id="settings-pop" hidden>
+    <div class="side-label">テーマ</div>
+    <div class="theme-row"><span>画面</span><select id="viewer-theme-sel"></select></div>
+    <div class="theme-row"><span>PDF</span><select id="pdf-theme-sel"></select></div>
+  </div>
+
+  <!-- ノートのコンテキストメニュー -->
+  <div id="note-menu" hidden>
+    <button data-act="rename">✏️ 表示名を変更</button>
+    <button data-act="tags">🏷️ タグを編集</button>
+    <button data-act="move">📂 フォルダへ移動</button>
+    <button data-act="vscode">💻 VSCode で編集</button>
+  </div>
 
   <main id="main">
     <div id="topbar">
@@ -91,6 +103,19 @@
   </div>
 </div>
 
+<!-- 汎用入力ダイアログ(表示名変更・タグ編集・移動) -->
+<div id="input-overlay" hidden>
+  <div id="input-dialog">
+    <h3 id="input-title"></h3>
+    <label><span id="input-label"></span><input id="input-field" type="text" list="input-suggestions" autocomplete="off"></label>
+    <datalist id="input-suggestions"></datalist>
+    <div class="dialog-actions">
+      <button id="input-cancel" class="btn">キャンセル</button>
+      <button id="input-ok" class="btn primary">OK</button>
+    </div>
+  </div>
+</div>
+
 <!-- 新規フォルダダイアログ -->
 <div id="folder-overlay" hidden>
   <div id="folder-dialog">
@@ -107,6 +132,6 @@
 
 <script src="/static/vendor/mermaid.min.js"></script>
 <script src="/static/vendor/katex/katex.min.js"></script>
-<script src="/static/app.js?v=10"></script>
+<script src="/static/app.js?v=11"></script>
 </body>
 </html>

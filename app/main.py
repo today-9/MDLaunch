@@ -64,6 +64,17 @@ class NewFolder(BaseModel):
     folder: str
 
 
+class MetaUpdate(BaseModel):
+    path: str
+    title: str | None = None
+    tags: list[str] | None = None
+
+
+class MoveNote(BaseModel):
+    path: str
+    folder: str = ""
+
+
 @app.get("/api/tree")
 def get_tree():
     vault.refresh()
@@ -93,6 +104,28 @@ def new_note(req: NewNote):
         raise HTTPException(400, "フォルダは Vault 内を指定してください")
     vault.open_in_vscode(rel)
     return {"path": rel}
+
+
+@app.post("/api/update-meta")
+def update_meta(req: MetaUpdate):
+    vault.refresh()
+    try:
+        vault.update_meta(req.path, req.title, req.tags)
+    except KeyError:
+        raise HTTPException(404, f"note not found: {req.path}")
+    return {"ok": True}
+
+
+@app.post("/api/move")
+def move_note(req: MoveNote):
+    vault.refresh()
+    try:
+        new_rel = vault.move_note(req.path, req.folder)
+    except KeyError:
+        raise HTTPException(404, f"note not found: {req.path}")
+    except (ValueError, OSError):
+        raise HTTPException(400, "移動先が不正か、Vault の外を指しています")
+    return {"path": new_rel}
 
 
 @app.post("/api/newfolder")

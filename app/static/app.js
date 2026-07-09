@@ -51,6 +51,16 @@ const api = {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ folder }),
   }),
+  updateMeta: (path, fields) => fetchJSON("/api/update-meta", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, ...fields }),
+  }),
+  move: (path, folder) => fetchJSON("/api/move", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, folder }),
+  }),
   shutdown: () => fetchJSON("/api/shutdown", { method: "POST" }),
   themes: () => fetchJSON("/api/themes"),
 };
@@ -145,13 +155,18 @@ async function refreshSidebar() {
 function renderTree(tree) {
   const container = $("#tree");
   container.innerHTML = "";
+  allFolders = [];
   container.appendChild(buildTreeChildren(tree));
   markCurrentInTree();
 }
 
-function buildTreeChildren(node) {
+let allFolders = [];
+
+function buildTreeChildren(node, prefix = "") {
   const frag = document.createDocumentFragment();
   for (const [name, child] of Object.entries(node.folders)) {
+    const folderPath = prefix ? `${prefix}/${name}` : name;
+    allFolders.push(folderPath);
     const folder = el("div", "tree-folder open");
     const head = el("div", "tree-folder-name");
     head.appendChild(el("span", "chev", "▶"));
@@ -159,17 +174,21 @@ function buildTreeChildren(node) {
     head.addEventListener("click", () => folder.classList.toggle("open"));
     folder.appendChild(head);
     const children = el("div", "tree-children");
-    children.appendChild(buildTreeChildren(child));
+    children.appendChild(buildTreeChildren(child, folderPath));
     folder.appendChild(children);
     frag.appendChild(folder);
   }
   for (const note of node.notes) {
-    const btn = el("button", "tree-note");
-    btn.dataset.path = note.path;
-    btn.appendChild(el("span", "", note.icon));
-    btn.appendChild(el("span", "t", note.title));
-    btn.addEventListener("click", () => showNote(note.path));
-    frag.appendChild(btn);
+    const row = el("div", "tree-note");
+    row.dataset.path = note.path;
+    row.appendChild(el("span", "", note.icon));
+    row.appendChild(el("span", "t", note.title));
+    const more = el("button", "note-more", "⋯");
+    more.title = "メニュー";
+    more.addEventListener("click", (e) => openNoteMenu(e, note.path));
+    row.appendChild(more);
+    row.addEventListener("click", () => showNote(note.path));
+    frag.appendChild(row);
   }
   return frag;
 }
@@ -183,6 +202,9 @@ function markCurrentInTree() {
   });
 }
 
+const TAG_LIMIT = 8;
+let showAllTags = false;
+
 function renderTags(tags) {
   const container = $("#tag-list");
   container.innerHTML = "";
@@ -190,13 +212,23 @@ function renderTags(tags) {
     container.appendChild(el("div", "side-footer", "タグはまだありません"));
     return;
   }
-  for (const t of tags) {
+  const visible = showAllTags ? tags : tags.slice(0, TAG_LIMIT);
+  for (const t of visible) {
     const btn = el("button", "tag-item");
     btn.dataset.tag = t.tag;
     btn.appendChild(el("span", "", "🏷️ " + t.tag));
     btn.appendChild(el("span", "cnt", String(t.count)));
     btn.addEventListener("click", () => showHome(t.tag));
     container.appendChild(btn);
+  }
+  if (tags.length > TAG_LIMIT) {
+    const toggle = el("button", "tag-item tag-toggle",
+      showAllTags ? "− 折りたたむ" : `＋ あと ${tags.length - TAG_LIMIT} 件を表示`);
+    toggle.addEventListener("click", () => {
+      showAllTags = !showAllTags;
+      renderTags(tags);
+    });
+    container.appendChild(toggle);
   }
   markCurrentInTree();
 }
@@ -469,6 +501,123 @@ async function createNote() {
     showNote(path);
   } catch { /* オフライン時はバナー表示のみ */ }
 }
+
+/* ---------- 汎用入力ダイアログ ---------- */
+const inputOverlay = $("#input-overlay");
+let inputResolve = null;
+
+function askInput({ title, label, value = "", placeholder = "", suggestions = [] }) {
+  return new Promise((resolve) => {
+    inputResolve = resolve;
+    $("#input-title").textContent = title;
+    $("#input-label").textContent = label;
+    const field = $("#input-field");
+    field.value = value;
+    field.placeholder = placeholder;
+    const dl = $("#input-suggestions");
+    dl.innerHTML = "";
+    for (const s of suggestions) {
+      const opt = document.createElement("option");
+      opt.value = s;
+      dl.appendChild(opt);
+    }
+    inputOverlay.hidden = false;
+    field.focus();
+    field.select();
+  });
+}
+
+function closeInput(result) {
+  inputOverlay.hidden = true;
+  if (inputResolve) {
+    inputResolve(result);
+    inputResolve = null;
+  }
+}
+
+$("#input-ok").addEventListener("click", () => closeInput($("#input-field").value));
+$("#input-cancel").addEventListener("click", () => closeInput(null));
+inputOverlay.addEventListener("click", (e) => { if (e.target === inputOverlay) closeInput(null); });
+inputOverlay.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.tagName === "INPUT") closeInput($("#input-field").value);
+  if (e.key === "Escape") closeInput(null);
+});
+
+/* ---------- ノートメニュー ---------- */
+const noteMenu = $("#note-menu");
+let menuPath = null;
+
+function openNoteMenu(e, path) {
+  e.stopPropagation();
+  menuPath = path;
+  noteMenu.hidden = false;
+  const w = 200;
+  const h = noteMenu.offsetHeight || 150;
+  noteMenu.style.left = Math.min(e.clientX, window.innerWidth - w - 10) + "px";
+  noteMenu.style.top = Math.min(e.clientY, window.innerHeight - h - 10) + "px";
+}
+
+document.addEventListener("click", (e) => {
+  if (!noteMenu.hidden && !noteMenu.contains(e.target)) noteMenu.hidden = true;
+});
+
+noteMenu.addEventListener("click", async (e) => {
+  const act = e.target.dataset.act;
+  if (!act || !menuPath) return;
+  const path = menuPath;
+  noteMenu.hidden = true;
+  try {
+    if (act === "vscode") {
+      await api.open(path);
+      return;
+    }
+    const note = await api.note(path);
+    if (act === "rename") {
+      const title = await askInput({
+        title: "表示名を変更", label: "新しい表示名", value: note.title,
+      });
+      if (title == null || !title.trim() || title.trim() === note.title) return;
+      await api.updateMeta(path, { title: title.trim() });
+      toast("表示名を変更しました");
+    } else if (act === "tags") {
+      const tags = await askInput({
+        title: "タグを編集", label: "タグ(カンマ区切り。空欄で全削除)",
+        value: note.tags.join(", "), placeholder: "例: memo, idea",
+      });
+      if (tags == null) return;
+      await api.updateMeta(path, { tags: tags.split(",").map((t) => t.trim()).filter(Boolean) });
+      toast("タグを更新しました");
+    } else if (act === "move") {
+      const folder = await askInput({
+        title: "フォルダへ移動", label: "移動先フォルダ(空欄でルートへ)",
+        value: note.folder, suggestions: allFolders,
+      });
+      if (folder == null || folder.trim() === note.folder) return;
+      const res = await api.move(path, folder.trim());
+      toast("移動しました");
+      await refreshSidebar();
+      if (currentPath === path) showNote(res.path);
+      return;
+    }
+    await refreshSidebar();
+    if (currentPath === path) showNote(path);
+  } catch {
+    toast("操作に失敗しました");
+  }
+});
+
+/* ---------- 設定ポップオーバー ---------- */
+const settingsPop = $("#settings-pop");
+
+$("#settings-btn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  settingsPop.hidden = !settingsPop.hidden;
+});
+document.addEventListener("click", (e) => {
+  if (!settingsPop.hidden && !settingsPop.contains(e.target) && e.target.id !== "settings-btn") {
+    settingsPop.hidden = true;
+  }
+});
 
 /* ---------- 新規フォルダ ---------- */
 const folderOverlay = $("#folder-overlay");

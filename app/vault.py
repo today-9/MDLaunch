@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 import frontmatter
+import yaml
 from markdown_it import MarkdownIt
 from mdit_py_plugins.dollarmath import dollarmath_plugin
 from mdit_py_plugins.front_matter import front_matter_plugin
@@ -310,6 +311,46 @@ class Vault:
             raise ValueError("invalid folder")
         target.mkdir(parents=True, exist_ok=True)
         return target.relative_to(self.root).as_posix()
+
+    def update_meta(self, rel: str, title: str | None = None, tags: list[str] | None = None) -> None:
+        """frontmatter の title / tags だけを書き換える(本文・他のキーは保持)"""
+        if rel not in self.notes:
+            raise KeyError(rel)
+        path = self.root / rel
+        post = frontmatter.load(path)
+        if title is not None:
+            post.metadata["title"] = title
+        if tags is not None:
+            post.metadata["tags"] = tags
+        # 既定の CSafeDumper (libyaml) は絵文字など非BMP文字を \U エスケープしてしまうため、
+        # 純 Python の SafeDumper を明示して人間が読める frontmatter を保つ
+        frontmatter.dump(post, path, encoding="utf-8", allow_unicode=True, Dumper=yaml.SafeDumper)
+        self._mtimes.pop(rel, None)
+        self.refresh()
+
+    def move_note(self, rel: str, folder: str = "") -> str:
+        """ノートを別フォルダへ移動する。戻り値は新しい rel_path"""
+        if rel not in self.notes:
+            raise KeyError(rel)
+        src = (self.root / rel).resolve()
+        if folder.strip():
+            target_dir = (self.root / folder.strip()).resolve()
+            if not target_dir.is_relative_to(self.root):
+                raise ValueError("folder is outside the vault")
+        else:
+            target_dir = self.root
+        target_dir.mkdir(parents=True, exist_ok=True)
+        dest = target_dir / src.name
+        n = 1
+        while dest.exists() and dest != src:
+            n += 1
+            dest = target_dir / f"{src.stem} {n}.md"
+        if dest != src:
+            shutil.move(str(src), str(dest))
+            self.notes.pop(rel, None)
+            self._mtimes.pop(rel, None)
+        self.refresh()
+        return dest.relative_to(self.root).as_posix()
 
     def open_in_vscode(self, rel: str) -> None:
         path = (self.root / rel).resolve()

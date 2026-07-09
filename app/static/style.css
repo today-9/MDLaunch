@@ -106,11 +106,23 @@ input { font-family: inherit; }
 
 .tree-note {
   display: flex; align-items: center; gap: 7px;
-  width: 100%; padding: 4px 10px; border-radius: 6px;
+  width: 100%; padding: 4px 26px 4px 10px; border-radius: 6px;
   color: var(--text-light); font-size: 14px;
   text-align: left;
   white-space: nowrap; overflow: hidden;
+  position: relative; cursor: pointer;
+  user-select: none;
 }
+.note-more {
+  position: absolute; right: 4px; top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  font-size: 14px; line-height: 1;
+  color: var(--text-faint);
+  padding: 2px 5px; border-radius: 4px;
+}
+.tree-note:hover .note-more { opacity: 1; }
+.note-more:hover { background: var(--active); color: var(--text); }
 .tree-note span.t { overflow: hidden; text-overflow: ellipsis; }
 .tree-note:hover { background: var(--hover); }
 .tree-note.current { background: var(--active); color: var(--text); font-weight: 500; }
@@ -124,6 +136,32 @@ input { font-family: inherit; }
 .tag-item:hover { background: var(--hover); }
 .tag-item.current { background: var(--active); color: var(--text); }
 .tag-item .cnt { margin-left: auto; color: var(--text-faint); font-size: 12px; }
+
+/* ノートメニュー・設定ポップオーバー */
+#note-menu, #settings-pop {
+  position: fixed; z-index: 150;
+  background: var(--bg);
+  border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(15, 15, 15, 0.2);
+  padding: 5px;
+  min-width: 190px;
+}
+#note-menu button {
+  display: block; width: 100%; text-align: left;
+  padding: 6px 10px; border-radius: 5px;
+  font-size: 13.5px; color: var(--text);
+}
+#note-menu button:hover { background: var(--hover); }
+#settings-pop { left: 12px; bottom: 48px; width: 228px; padding: 10px 4px 6px; }
+
+.footer-actions { display: flex; align-items: center; gap: 4px; }
+#settings-btn {
+  font-size: 13px; color: var(--text-faint);
+  padding: 2px 7px; border-radius: 4px;
+}
+#settings-btn:hover { background: var(--hover); color: var(--text); }
+
+.tag-item.tag-toggle { color: var(--text-faint); font-size: 12.5px; }
 
 .theme-row {
   display: flex; align-items: center; gap: 8px;
@@ -401,19 +439,24 @@ input { font-family: inherit; }
 .palette-empty { padding: 24px; text-align: center; color: var(--text-faint); font-size: 14px; }
 
 /* ===== 新規ダイアログ ===== */
-#new-dialog, #folder-dialog {
+#input-overlay {
+  position: fixed; inset: 0; z-index: 160;
+  background: rgba(15, 15, 15, 0.35);
+  display: flex; justify-content: center;
+}
+#new-dialog, #folder-dialog, #input-dialog {
   margin-top: 18vh;
   width: min(460px, 90vw); height: fit-content;
   background: var(--bg); border-radius: 10px;
   box-shadow: 0 20px 60px rgba(15, 15, 15, 0.3);
   padding: 22px;
 }
-#new-dialog h3, #folder-dialog h3 { font-size: 17px; margin-bottom: 14px; }
-#new-dialog label, #folder-dialog label {
+#new-dialog h3, #folder-dialog h3, #input-dialog h3 { font-size: 17px; margin-bottom: 14px; }
+#new-dialog label, #folder-dialog label, #input-dialog label {
   display: block; font-size: 12.5px; color: var(--text-light);
   margin-bottom: 12px; font-weight: 500;
 }
-#new-dialog input, #folder-dialog input {
+#new-dialog input, #folder-dialog input, #input-dialog input {
   display: block; width: 100%; margin-top: 4px;
   padding: 7px 10px;
   border: 1px solid var(--border); border-radius: 6px;
@@ -421,7 +464,7 @@ input { font-family: inherit; }
   outline: none;
   background: var(--bg);
 }
-#new-dialog input:focus, #folder-dialog input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg); }
+#new-dialog input:focus, #folder-dialog input:focus, #input-dialog input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .btn {
   padding: 6px 14px; border-radius: 6px; font-size: 14px;
@@ -435,7 +478,8 @@ input { font-family: inherit; }
 @media print {
   #sidebar, #topbar, #offline-banner, #toast,
   .copy-btn, .backlinks, .page-meta,
-  #palette-overlay, #new-overlay, #folder-overlay { display: none !important; }
+  #palette-overlay, #new-overlay, #folder-overlay,
+  #input-overlay, #note-menu, #settings-pop { display: none !important; }
   #app { display: block; height: auto; }
   #main { overflow: visible; }
   #content { max-width: 100%; padding: 0; }
