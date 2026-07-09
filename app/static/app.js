@@ -152,15 +152,98 @@ async function refreshSidebar() {
   $("#note-count").textContent = `${data.count} ノート`;
 }
 
+let treeRootDropReady = false;
+
 function renderTree(tree) {
   const container = $("#tree");
   container.innerHTML = "";
   allFolders = [];
   container.appendChild(buildTreeChildren(tree));
+  if (!treeRootDropReady) {
+    makeDropTarget(container, "");   // ツリーの余白へドロップ = ルートへ移動
+    treeRootDropReady = true;
+  }
   markCurrentInTree();
+  paintSelection();
 }
 
 let allFolders = [];
+
+/* ---------- ツリーの複数選択 ---------- */
+const selectedPaths = new Set();
+let selectionAnchor = null;
+
+function paintSelection() {
+  document.querySelectorAll(".tree-note").forEach((r) => {
+    r.classList.toggle("selected", selectedPaths.has(r.dataset.path));
+  });
+}
+
+function clearSelection() {
+  selectedPaths.clear();
+  selectionAnchor = null;
+  paintSelection();
+}
+
+function treeNoteRows() {
+  return [...document.querySelectorAll("#tree .tree-note")];
+}
+
+function handleTreeClick(e, path) {
+  if (e.ctrlKey || e.metaKey) {
+    if (selectedPaths.has(path)) selectedPaths.delete(path);
+    else selectedPaths.add(path);
+    selectionAnchor = path;
+    paintSelection();
+    return;
+  }
+  if (e.shiftKey && selectionAnchor) {
+    const rows = treeNoteRows().map((r) => r.dataset.path);
+    const a = rows.indexOf(selectionAnchor);
+    const b = rows.indexOf(path);
+    if (a !== -1 && b !== -1) {
+      selectedPaths.clear();
+      for (const p of rows.slice(Math.min(a, b), Math.max(a, b) + 1)) selectedPaths.add(p);
+      paintSelection();
+      return;
+    }
+  }
+  clearSelection();
+  showNote(path);
+}
+
+/* ---------- ドラッグ&ドロップ移動 ---------- */
+async function movePathsTo(paths, folder) {
+  let moved = 0;
+  let currentNew = null;
+  for (const p of paths) {
+    try {
+      const res = await api.move(p, folder);
+      if (res.path !== p) moved++;
+      if (currentPath === p) currentNew = res.path;
+    } catch { /* 個別失敗はスキップ */ }
+  }
+  clearSelection();
+  toast(moved ? `${moved} 件を「${folder || "ルート"}」へ移動しました` : "移動はありませんでした");
+  await refreshSidebar();
+  if (currentNew && currentNew !== currentPath) showNote(currentNew);
+}
+
+function makeDropTarget(elem, folderPath) {
+  elem.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    elem.classList.add("drop-target");
+  });
+  elem.addEventListener("dragleave", () => elem.classList.remove("drop-target"));
+  elem.addEventListener("drop", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    elem.classList.remove("drop-target");
+    if (selectedPaths.size) movePathsTo([...selectedPaths], folderPath);
+  });
+}
 
 function buildTreeChildren(node, prefix = "") {
   const frag = document.createDocumentFragment();
@@ -172,6 +255,7 @@ function buildTreeChildren(node, prefix = "") {
     head.appendChild(el("span", "chev", "▶"));
     head.appendChild(el("span", "", "📁 " + name));
     head.addEventListener("click", () => folder.classList.toggle("open"));
+    makeDropTarget(head, folderPath);
     folder.appendChild(head);
     const children = el("div", "tree-children");
     children.appendChild(buildTreeChildren(child, folderPath));
@@ -181,13 +265,25 @@ function buildTreeChildren(node, prefix = "") {
   for (const note of node.notes) {
     const row = el("div", "tree-note");
     row.dataset.path = note.path;
+    row.draggable = true;
     row.appendChild(el("span", "", note.icon));
     row.appendChild(el("span", "t", note.title));
     const more = el("button", "note-more", "⋯");
     more.title = "メニュー";
     more.addEventListener("click", (e) => openNoteMenu(e, note.path));
     row.appendChild(more);
-    row.addEventListener("click", () => showNote(note.path));
+    row.addEventListener("click", (e) => handleTreeClick(e, note.path));
+    row.addEventListener("dragstart", (e) => {
+      // 未選択のノートを掴んだら、それを単独選択として扱う
+      if (!selectedPaths.has(note.path)) {
+        selectedPaths.clear();
+        selectedPaths.add(note.path);
+        selectionAnchor = note.path;
+        paintSelection();
+      }
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", [...selectedPaths].join("\n"));
+    });
     frag.appendChild(row);
   }
   return frag;
@@ -561,49 +657,62 @@ document.addEventListener("click", (e) => {
   if (!noteMenu.hidden && !noteMenu.contains(e.target)) noteMenu.hidden = true;
 });
 
-noteMenu.addEventListener("click", async (e) => {
-  const act = e.target.dataset.act;
-  if (!act || !menuPath) return;
-  const path = menuPath;
-  noteMenu.hidden = true;
+async function renameNoteDialog(path) {
   try {
-    if (act === "vscode") {
-      await api.open(path);
-      return;
-    }
     const note = await api.note(path);
-    if (act === "rename") {
-      const title = await askInput({
-        title: "表示名を変更", label: "新しい表示名", value: note.title,
-      });
-      if (title == null || !title.trim() || title.trim() === note.title) return;
-      await api.updateMeta(path, { title: title.trim() });
-      toast("表示名を変更しました");
-    } else if (act === "tags") {
-      const tags = await askInput({
-        title: "タグを編集", label: "タグ(カンマ区切り。空欄で全削除)",
-        value: note.tags.join(", "), placeholder: "例: memo, idea",
-      });
-      if (tags == null) return;
-      await api.updateMeta(path, { tags: tags.split(",").map((t) => t.trim()).filter(Boolean) });
-      toast("タグを更新しました");
-    } else if (act === "move") {
-      const folder = await askInput({
-        title: "フォルダへ移動", label: "移動先フォルダ(空欄でルートへ)",
-        value: note.folder, suggestions: allFolders,
-      });
-      if (folder == null || folder.trim() === note.folder) return;
-      const res = await api.move(path, folder.trim());
-      toast("移動しました");
-      await refreshSidebar();
-      if (currentPath === path) showNote(res.path);
-      return;
-    }
+    const title = await askInput({
+      title: "表示名を変更", label: "新しい表示名", value: note.title,
+    });
+    if (title == null || !title.trim() || title.trim() === note.title) return;
+    await api.updateMeta(path, { title: title.trim() });
+    toast("表示名を変更しました");
     await refreshSidebar();
     if (currentPath === path) showNote(path);
   } catch {
     toast("操作に失敗しました");
   }
+}
+
+async function editTagsDialog(path) {
+  try {
+    const note = await api.note(path);
+    const tags = await askInput({
+      title: "タグを編集", label: "タグ(カンマ区切り。空欄で全削除)",
+      value: note.tags.join(", "), placeholder: "例: memo, idea",
+    });
+    if (tags == null) return;
+    await api.updateMeta(path, { tags: tags.split(",").map((t) => t.trim()).filter(Boolean) });
+    toast("タグを更新しました");
+    await refreshSidebar();
+    if (currentPath === path) showNote(path);
+  } catch {
+    toast("操作に失敗しました");
+  }
+}
+
+async function moveNoteDialog(path) {
+  try {
+    const note = await api.note(path);
+    const folder = await askInput({
+      title: "フォルダへ移動", label: "移動先フォルダ(空欄でルートへ)",
+      value: note.folder, suggestions: allFolders,
+    });
+    if (folder == null || folder.trim() === note.folder) return;
+    await movePathsTo([path], folder.trim());
+  } catch {
+    toast("操作に失敗しました");
+  }
+}
+
+noteMenu.addEventListener("click", async (e) => {
+  const act = e.target.dataset.act;
+  if (!act || !menuPath) return;
+  const path = menuPath;
+  noteMenu.hidden = true;
+  if (act === "vscode") api.open(path).catch(() => toast("操作に失敗しました"));
+  else if (act === "rename") renameNoteDialog(path);
+  else if (act === "tags") editTagsDialog(path);
+  else if (act === "move") moveNoteDialog(path);
 });
 
 /* ---------- 設定ポップオーバー ---------- */
@@ -675,7 +784,19 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     paletteOverlay.hidden ? openPalette() : closePalette();
   }
-  if (e.key === "Escape" && !paletteOverlay.hidden) closePalette();
+  if (e.key === "F2") {
+    // ダイアログ表示中は何もしない
+    if (!inputOverlay.hidden || !paletteOverlay.hidden || !newOverlay.hidden || !folderOverlay.hidden) return;
+    const target = selectedPaths.size === 1 ? [...selectedPaths][0] : currentPath;
+    if (target) {
+      e.preventDefault();
+      renameNoteDialog(target);
+    }
+  }
+  if (e.key === "Escape") {
+    if (!paletteOverlay.hidden) closePalette();
+    else if (selectedPaths.size) clearSelection();
+  }
 });
 
 /* 定期リフレッシュ(VSCode 側の編集を拾って再描画。サーバー死活監視も兼ねる) */
