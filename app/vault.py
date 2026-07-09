@@ -352,6 +352,28 @@ class Vault:
         self.refresh()
         return dest.relative_to(self.root).as_posix()
 
+    def rename_folder(self, folder: str, new_name: str) -> str:
+        """フォルダの名前を変更する(場所は変えない)。戻り値は新しいフォルダの rel パス"""
+        src = (self.root / folder.strip()).resolve()
+        if (
+            not folder.strip()
+            or not src.is_relative_to(self.root)
+            or src == self.root
+            or not src.is_dir()
+        ):
+            raise ValueError("invalid folder")
+        new_name = new_name.strip()
+        if not new_name or re.search(r'[\\/:*?"<>|]', new_name):
+            raise ValueError("invalid name")
+        dest = src.parent / new_name
+        if dest == src:
+            return src.relative_to(self.root).as_posix()
+        if dest.exists():
+            raise ValueError("already exists")
+        src.rename(dest)
+        self.refresh()
+        return dest.relative_to(self.root).as_posix()
+
     def open_in_vscode(self, rel: str) -> None:
         path = (self.root / rel).resolve()
         if not path.is_relative_to(self.root):

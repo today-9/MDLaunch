@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MDLaunch</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗂️</text></svg>">
-<link rel="stylesheet" href="/static/style.css?v=12">
+<link rel="stylesheet" href="/static/style.css?v=13">
 <link rel="stylesheet" href="/static/pygments.css?v=4">
 <link rel="stylesheet" href="/static/vendor/katex/katex.min.css">
 <link id="viewer-theme-css" rel="stylesheet" href="/static/themes/viewer-light.css">
@@ -66,6 +66,12 @@
     <button data-act="tags">🏷️ タグを編集</button>
     <button data-act="move">📂 フォルダへ移動</button>
     <button data-act="vscode">💻 VSCode で編集</button>
+  </div>
+
+  <!-- フォルダのコンテキストメニュー -->
+  <div id="folder-menu" hidden>
+    <button data-act="rename">✏️ フォルダ名を変更</button>
+    <button data-act="newnote">📝 ここに新規ノート</button>
   </div>
 
   <main id="main">
@@ -132,6 +138,6 @@
 
 <script src="/static/vendor/mermaid.min.js"></script>
 <script src="/static/vendor/katex/katex.min.js"></script>
-<script src="/static/app.js?v=12"></script>
+<script src="/static/app.js?v=13"></script>
 </body>
 </html>

@@ -75,6 +75,11 @@ class MoveNote(BaseModel):
     folder: str = ""
 
 
+class RenameFolder(BaseModel):
+    folder: str
+    name: str
+
+
 @app.get("/api/tree")
 def get_tree():
     vault.refresh()
@@ -126,6 +131,16 @@ def move_note(req: MoveNote):
     except (ValueError, OSError):
         raise HTTPException(400, "移動先が不正か、Vault の外を指しています")
     return {"path": new_rel}
+
+
+@app.post("/api/rename-folder")
+def rename_folder(req: RenameFolder):
+    vault.refresh()
+    try:
+        new_folder = vault.rename_folder(req.folder, req.name)
+    except (ValueError, OSError):
+        raise HTTPException(400, "フォルダ名が不正か、同名フォルダが既に存在します")
+    return {"folder": new_folder}
 
 
 @app.post("/api/newfolder")

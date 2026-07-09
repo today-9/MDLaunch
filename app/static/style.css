@@ -94,10 +94,12 @@ input { font-family: inherit; }
 /* ツリー */
 .tree-folder-name {
   display: flex; align-items: center; gap: 6px;
-  padding: 4px 10px; border-radius: 6px;
+  padding: 4px 26px 4px 10px; border-radius: 6px;
   color: var(--text-light); font-weight: 500; cursor: pointer;
   user-select: none;
+  position: relative;
 }
+.tree-folder-name:hover .note-more { opacity: 1; }
 .tree-folder-name:hover { background: var(--hover); }
 .tree-folder-name .chev { font-size: 10px; width: 12px; transition: transform 0.15s; color: var(--text-faint); }
 .tree-folder.open > .tree-folder-name .chev { transform: rotate(90deg); }
@@ -147,7 +149,7 @@ input { font-family: inherit; }
 .tag-item .cnt { margin-left: auto; color: var(--text-faint); font-size: 12px; }
 
 /* ノートメニュー・設定ポップオーバー */
-#note-menu, #settings-pop {
+#note-menu, #folder-menu, #settings-pop {
   position: fixed; z-index: 150;
   background: var(--bg);
   border: 1px solid var(--border); border-radius: 8px;
@@ -155,12 +157,12 @@ input { font-family: inherit; }
   padding: 5px;
   min-width: 190px;
 }
-#note-menu button {
+#note-menu button, #folder-menu button {
   display: block; width: 100%; text-align: left;
   padding: 6px 10px; border-radius: 5px;
   font-size: 13.5px; color: var(--text);
 }
-#note-menu button:hover { background: var(--hover); }
+#note-menu button:hover, #folder-menu button:hover { background: var(--hover); }
 #settings-pop { left: 12px; bottom: 48px; width: 228px; padding: 10px 4px 6px; }
 
 .footer-actions { display: flex; align-items: center; gap: 4px; }
@@ -488,7 +490,7 @@ input { font-family: inherit; }
   #sidebar, #topbar, #offline-banner, #toast,
   .copy-btn, .backlinks, .page-meta,
   #palette-overlay, #new-overlay, #folder-overlay,
-  #input-overlay, #note-menu, #settings-pop { display: none !important; }
+  #input-overlay, #note-menu, #folder-menu, #settings-pop { display: none !important; }
   #app { display: block; height: auto; }
   #main { overflow: visible; }
   #content { max-width: 100%; padding: 0; }

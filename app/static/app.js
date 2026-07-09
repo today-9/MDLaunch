@@ -51,6 +51,11 @@ const api = {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ folder }),
   }),
+  renameFolder: (folder, name) => fetchJSON("/api/rename-folder", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ folder, name }),
+  }),
   updateMeta: (path, fields) => fetchJSON("/api/update-meta", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -254,7 +259,12 @@ function buildTreeChildren(node, prefix = "") {
     const head = el("div", "tree-folder-name");
     head.appendChild(el("span", "chev", "▶"));
     head.appendChild(el("span", "", "📁 " + name));
+    const fmore = el("button", "note-more", "⋯");
+    fmore.title = "メニュー";
+    fmore.addEventListener("click", (e) => openFolderMenu(e, folderPath));
+    head.appendChild(fmore);
     head.addEventListener("click", () => folder.classList.toggle("open"));
+    head.addEventListener("contextmenu", (e) => openFolderMenu(e, folderPath));
     makeDropTarget(head, folderPath);
     folder.appendChild(head);
     const children = el("div", "tree-children");
@@ -273,6 +283,7 @@ function buildTreeChildren(node, prefix = "") {
     more.addEventListener("click", (e) => openNoteMenu(e, note.path));
     row.appendChild(more);
     row.addEventListener("click", (e) => handleTreeClick(e, note.path));
+    row.addEventListener("contextmenu", (e) => openNoteMenu(e, note.path));
     row.addEventListener("dragstart", (e) => {
       // 未選択のノートを掴んだら、それを単独選択として扱う
       if (!selectedPaths.has(note.path)) {
@@ -639,22 +650,37 @@ inputOverlay.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeInput(null);
 });
 
-/* ---------- ノートメニュー ---------- */
+/* ---------- コンテキストメニュー(ノート/フォルダ共通の開閉) ---------- */
 const noteMenu = $("#note-menu");
+const folderMenu = $("#folder-menu");
 let menuPath = null;
+let menuFolder = null;
+
+function placeMenu(menu, e) {
+  e.preventDefault();
+  e.stopPropagation();
+  noteMenu.hidden = true;
+  folderMenu.hidden = true;
+  menu.hidden = false;
+  const w = 200;
+  const h = menu.offsetHeight || 120;
+  menu.style.left = Math.min(e.clientX, window.innerWidth - w - 10) + "px";
+  menu.style.top = Math.min(e.clientY, window.innerHeight - h - 10) + "px";
+}
 
 function openNoteMenu(e, path) {
-  e.stopPropagation();
   menuPath = path;
-  noteMenu.hidden = false;
-  const w = 200;
-  const h = noteMenu.offsetHeight || 150;
-  noteMenu.style.left = Math.min(e.clientX, window.innerWidth - w - 10) + "px";
-  noteMenu.style.top = Math.min(e.clientY, window.innerHeight - h - 10) + "px";
+  placeMenu(noteMenu, e);
+}
+
+function openFolderMenu(e, folderPath) {
+  menuFolder = folderPath;
+  placeMenu(folderMenu, e);
 }
 
 document.addEventListener("click", (e) => {
   if (!noteMenu.hidden && !noteMenu.contains(e.target)) noteMenu.hidden = true;
+  if (!folderMenu.hidden && !folderMenu.contains(e.target)) folderMenu.hidden = true;
 });
 
 async function renameNoteDialog(path) {
@@ -713,6 +739,42 @@ noteMenu.addEventListener("click", async (e) => {
   else if (act === "rename") renameNoteDialog(path);
   else if (act === "tags") editTagsDialog(path);
   else if (act === "move") moveNoteDialog(path);
+});
+
+/* ---------- フォルダメニュー ---------- */
+async function renameFolderDialog(folderPath) {
+  const oldName = folderPath.split("/").pop();
+  const name = await askInput({
+    title: "フォルダ名を変更", label: "新しいフォルダ名", value: oldName,
+  });
+  if (name == null || !name.trim() || name.trim() === oldName) return;
+  try {
+    const res = await api.renameFolder(folderPath, name.trim());
+    toast("フォルダ名を変更しました");
+    // 表示中のノートがこのフォルダ配下ならパスを追従させる
+    if (currentPath && currentPath.startsWith(folderPath + "/")) {
+      const newPath = res.folder + currentPath.slice(folderPath.length);
+      await refreshSidebar();
+      showNote(newPath);
+      return;
+    }
+    await refreshSidebar();
+  } catch {
+    toast("変更できませんでした(同名フォルダがある可能性)");
+  }
+}
+
+folderMenu.addEventListener("click", async (e) => {
+  const act = e.target.dataset.act;
+  if (!act || !menuFolder) return;
+  const folderPath = menuFolder;
+  folderMenu.hidden = true;
+  if (act === "rename") renameFolderDialog(folderPath);
+  else if (act === "newnote") {
+    openNewDialog();
+    $("#new-folder").value = folderPath;
+    $("#new-title").focus();
+  }
 });
 
 /* ---------- 設定ポップオーバー ---------- */
