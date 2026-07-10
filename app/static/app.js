@@ -155,6 +155,7 @@ async function refreshSidebar() {
   renderTree(data.tree);
   renderTags(data.tags);
   $("#note-count").textContent = `${data.count} ノート`;
+  $("#stale-banner").hidden = !data.stale;
 }
 
 let treeRootDropReady = false;

@@ -30,6 +30,17 @@ if "MDLAUNCH_VAULT" not in os.environ:
     seed_vault(VAULT_DIR, Path(__file__).parent.parent / "examples" / "vault")
 
 
+def _source_stamp() -> float:
+    """app/*.py の最終更新時刻。起動時の値と比べて「要再起動」を検知する"""
+    return max(
+        (p.stat().st_mtime for p in Path(__file__).parent.glob("*.py")),
+        default=0.0,
+    )
+
+
+_STARTUP_SOURCE_STAMP = _source_stamp()
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # ランチャー経由(MDLAUNCH_OPEN=1)なら、起動完了後にブラウザを開く
@@ -83,7 +94,12 @@ class RenameFolder(BaseModel):
 @app.get("/api/tree")
 def get_tree():
     vault.refresh()
-    return {"tree": vault.tree(), "tags": vault.all_tags(), "count": len(vault.notes)}
+    return {
+        "tree": vault.tree(),
+        "tags": vault.all_tags(),
+        "count": len(vault.notes),
+        "stale": _source_stamp() > _STARTUP_SOURCE_STAMP,
+    }
 
 
 @app.get("/api/search")
