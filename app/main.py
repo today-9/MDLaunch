@@ -12,7 +12,7 @@ import webbrowser
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -81,6 +81,11 @@ class MetaUpdate(BaseModel):
     tags: list[str] | None = None
 
 
+class TagColor(BaseModel):
+    tag: str
+    color: str | None = None
+
+
 class MoveNote(BaseModel):
     path: str
     folder: str = ""
@@ -103,7 +108,8 @@ def get_tree():
 
 
 @app.get("/api/search")
-def search(q: str = "", tag: str | None = None):
+def search(q: str = "", tag: list[str] = Query(default=[])):
+    """?tag= は複数指定可(AND 検索)"""
     vault.refresh()
     return {"results": vault.search(q, tag)}
 
@@ -134,6 +140,15 @@ def update_meta(req: MetaUpdate):
         vault.update_meta(req.path, req.title, req.tags)
     except KeyError:
         raise HTTPException(404, f"note not found: {req.path}")
+    return {"ok": True}
+
+
+@app.post("/api/tag-color")
+def set_tag_color(req: TagColor):
+    try:
+        vault.set_tag_color(req.tag, req.color)
+    except ValueError:
+        raise HTTPException(400, "タグ名または色が不正です")
     return {"ok": True}
 
 

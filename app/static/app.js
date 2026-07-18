@@ -10,6 +10,8 @@ const pdfBtn = $("#pdf-btn");
 let currentPath = null;
 let currentTag = null;
 let currentUpdated = null;
+let allTags = [];      // [{tag, count, color}] — サイドバー更新時に反映
+let tagColors = {};    // タグ名 → 色名
 
 mermaid.initialize({ startOnLoad: false, theme: "neutral" });
 
@@ -34,9 +36,9 @@ async function fetchJSON(url, opts) {
 
 const api = {
   tree: () => fetchJSON("/api/tree"),
-  search: (q, tag) => {
+  search: (q, tags) => {
     const p = new URLSearchParams({ q });
-    if (tag) p.set("tag", tag);
+    for (const t of tags || []) p.append("tag", t);
     return fetchJSON(`/api/search?${p}`);
   },
   note: (path) => fetchJSON(`/api/note?path=${encodeURIComponent(path)}`),
@@ -65,6 +67,11 @@ const api = {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path, folder }),
+  }),
+  setTagColor: (tag, color) => fetchJSON("/api/tag-color", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tag, color }),
   }),
   shutdown: () => fetchJSON("/api/shutdown", { method: "POST" }),
   themes: () => fetchJSON("/api/themes"),
@@ -152,6 +159,9 @@ function fmtDate(iso) {
 /* ---------- サイドバー ---------- */
 async function refreshSidebar() {
   const data = await api.tree();
+  allTags = data.tags;
+  tagColors = {};
+  for (const t of data.tags) if (t.color) tagColors[t.tag] = t.color;
   renderTree(data.tree);
   renderTags(data.tags);
   $("#note-count").textContent = `${data.count} ノート`;
@@ -324,9 +334,13 @@ function renderTags(tags) {
   for (const t of visible) {
     const btn = el("button", "tag-item");
     btn.dataset.tag = t.tag;
-    btn.appendChild(el("span", "", "🏷️ " + t.tag));
+    const dot = el("span", "tag-dot");
+    if (t.color) dot.dataset.tc = t.color;
+    btn.appendChild(dot);
+    btn.appendChild(el("span", "t", t.tag));
     btn.appendChild(el("span", "cnt", String(t.count)));
     btn.addEventListener("click", () => showHome(t.tag));
+    btn.addEventListener("contextmenu", (e) => openTagColorPop(e, t.tag));
     container.appendChild(btn);
   }
   if (tags.length > TAG_LIMIT) {
@@ -341,6 +355,158 @@ function renderTags(tags) {
   markCurrentInTree();
 }
 
+/* ---------- タグの色 ---------- */
+const TAG_PALETTE = [
+  { id: null, label: "なし" },
+  { id: "gray", label: "グレー" },
+  { id: "brown", label: "ブラウン" },
+  { id: "orange", label: "オレンジ" },
+  { id: "yellow", label: "イエロー" },
+  { id: "green", label: "グリーン" },
+  { id: "teal", label: "ティール" },
+  { id: "blue", label: "ブルー" },
+  { id: "indigo", label: "インディゴ" },
+  { id: "purple", label: "パープル" },
+  { id: "pink", label: "ピンク" },
+  { id: "red", label: "レッド" },
+];
+
+const tagColorPop = $("#tag-color-pop");
+
+function openTagColorPop(e, tag) {
+  e.preventDefault();
+  e.stopPropagation();
+  tagColorPop.querySelector(".tcp-title").textContent = `「${tag}」の色`;
+  const grid = tagColorPop.querySelector(".tcp-grid");
+  grid.innerHTML = "";
+  const current = tagColors[tag] || null;
+  for (const c of TAG_PALETTE) {
+    const b = el("button", "tcp-swatch" + (current === c.id ? " current" : ""), c.id ? "あ" : "−");
+    if (c.id) b.dataset.tc = c.id;
+    b.title = c.label;
+    b.addEventListener("click", async () => {
+      tagColorPop.hidden = true;
+      try {
+        await api.setTagColor(tag, c.id);
+        await refreshSidebar();
+        // 表示中ノートのピルにも即反映(再読み込みせず data 属性だけ更新)
+        document.querySelectorAll(".page-meta .pill[data-tag]").forEach((p) => {
+          const col = tagColors[p.dataset.tag];
+          if (col) p.dataset.tc = col;
+          else delete p.dataset.tc;
+        });
+      } catch {
+        toast("色を変更できませんでした");
+      }
+    });
+    grid.appendChild(b);
+  }
+  tagColorPop.hidden = false;
+  const w = tagColorPop.offsetWidth || 190;
+  const h = tagColorPop.offsetHeight || 160;
+  tagColorPop.style.left = Math.min(e.clientX, window.innerWidth - w - 10) + "px";
+  tagColorPop.style.top = Math.min(e.clientY, window.innerHeight - h - 10) + "px";
+}
+
+document.addEventListener("click", (e) => {
+  if (!tagColorPop.hidden && !tagColorPop.contains(e.target)) tagColorPop.hidden = true;
+});
+
+/* ---------- タグ入力ピッカー(チップ式) ---------- */
+function createTagPicker(root, initial = []) {
+  root.innerHTML = "";
+  const selected = [...initial];
+  const box = el("div", "tp-box");
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "タグ名を入力して Enter";
+  input.autocomplete = "off";
+  const avail = el("div", "tp-avail");
+
+  function add(tag) {
+    tag = tag.trim();
+    if (tag && !selected.includes(tag)) selected.push(tag);
+    input.value = "";
+    render();
+  }
+
+  function chip(tag) {
+    const c = el("span", "pill tp-chip", tag);
+    if (tagColors[tag]) c.dataset.tc = tagColors[tag];
+    const x = el("button", "tp-x", "×");
+    x.title = "外す";
+    x.addEventListener("click", (e) => {
+      e.stopPropagation();
+      selected.splice(selected.indexOf(tag), 1);
+      render();
+      input.focus();
+    });
+    c.appendChild(x);
+    return c;
+  }
+
+  function renderAvail() {
+    avail.innerHTML = "";
+    const q = input.value.trim().toLowerCase();
+    const items = allTags.filter(
+      (t) => !selected.includes(t.tag) && (!q || t.tag.toLowerCase().includes(q))
+    );
+    if (!items.length) {
+      avail.appendChild(el("span", "tp-empty",
+        q ? `Enter で新しいタグ「${input.value.trim()}」を追加`
+          : (allTags.length ? "既存のタグはすべて選択済みです" : "既存のタグはまだありません")));
+      return;
+    }
+    for (const t of items) {
+      const b = el("button", "pill", t.tag);
+      b.type = "button";
+      if (t.color) b.dataset.tc = t.color;
+      b.appendChild(el("span", "tp-cnt", String(t.count)));
+      b.addEventListener("click", () => { add(t.tag); input.focus(); });
+      avail.appendChild(b);
+    }
+  }
+
+  function render() {
+    box.querySelectorAll(".tp-chip").forEach((c) => c.remove());
+    for (const t of selected) box.insertBefore(chip(t), input);
+    renderAvail();
+  }
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && input.value.trim()) {
+      // 入力中の Enter はタグ追加。空のときだけダイアログ側の Enter(作成/保存)に渡す
+      e.preventDefault();
+      e.stopPropagation();
+      add(input.value);
+    } else if (e.key === "Backspace" && !input.value && selected.length) {
+      selected.pop();
+      render();
+    }
+  });
+  input.addEventListener("input", () => {
+    // カンマ・読点区切りの入力や貼り付けにも対応
+    if (/[,、]/.test(input.value)) {
+      const parts = input.value.split(/[,、]/);
+      const rest = parts.pop();
+      for (const p of parts) if (p.trim() && !selected.includes(p.trim())) selected.push(p.trim());
+      input.value = rest;
+      render();
+    } else {
+      renderAvail();
+    }
+  });
+  input.addEventListener("focus", () => root.classList.add("focused"));
+  input.addEventListener("blur", () => root.classList.remove("focused"));
+  box.addEventListener("click", () => input.focus());
+
+  box.appendChild(input);
+  root.appendChild(box);
+  root.appendChild(avail);
+  render();
+  return { get: () => [...selected], focus: () => input.focus() };
+}
+
 /* ---------- ホーム(一覧) ---------- */
 async function showHome(tag = null) {
   currentPath = null;
@@ -351,7 +517,7 @@ async function showHome(tag = null) {
   breadcrumbEl.textContent = tag ? `🏷️ ${tag}` : "🏠 ホーム";
   let results;
   try {
-    ({ results } = await api.search("", tag));
+    ({ results } = await api.search("", tag ? [tag] : []));
   } catch {
     return;
   }
@@ -421,6 +587,8 @@ async function showNote(path) {
   const meta = el("div", "page-meta");
   for (const t of note.tags) {
     const pill = el("span", "pill", t);
+    pill.dataset.tag = t;
+    if (tagColors[t]) pill.dataset.tc = tagColors[t];
     pill.addEventListener("click", () => showHome(t));
     meta.appendChild(pill);
   }
@@ -528,13 +696,61 @@ pdfBtn.addEventListener("click", async () => {
 const paletteOverlay = $("#palette-overlay");
 const paletteInput = $("#palette-input");
 const paletteResults = $("#palette-results");
+const paletteTagsEl = $("#palette-tags");
 let paletteItems = [];
 let paletteSel = 0;
 let searchTimer = null;
+const paletteTags = new Set();   // 選択中のタグフィルタ(AND)
+let paletteTagsExpanded = false;
+
+function renderPaletteTags() {
+  const chipsEl = $("#palette-tags-chips");
+  const toggle = $("#palette-tags-toggle");
+  chipsEl.innerHTML = "";
+  if (!allTags.length) {
+    paletteTagsEl.hidden = true;
+    return;
+  }
+  paletteTagsEl.hidden = false;
+  paletteTagsEl.classList.toggle("expanded", paletteTagsExpanded);
+  // 選択中のタグを先頭に(折りたたみ時も必ず見えるように)
+  const ordered = [
+    ...allTags.filter((t) => paletteTags.has(t.tag)),
+    ...allTags.filter((t) => !paletteTags.has(t.tag)),
+  ];
+  for (const t of ordered) {
+    const b = el("button", "pill" + (paletteTags.has(t.tag) ? " on" : ""), t.tag);
+    b.type = "button";
+    if (t.color) b.dataset.tc = t.color;
+    b.appendChild(el("span", "tp-cnt", String(t.count)));
+    b.addEventListener("click", () => {
+      if (paletteTags.has(t.tag)) paletteTags.delete(t.tag);
+      else paletteTags.add(t.tag);
+      renderPaletteTags();
+      runSearch(paletteInput.value);
+      paletteInput.focus();
+    });
+    chipsEl.appendChild(b);
+  }
+  // 1行に収まらないときだけ「＋N / たたむ」トグルを出す
+  const chips = [...chipsEl.children];
+  const overflowCount = chips.filter((c) => c.offsetTop > chips[0].offsetTop).length;
+  toggle.hidden = !overflowCount && !paletteTagsExpanded;
+  toggle.textContent = paletteTagsExpanded ? "− たたむ" : `＋${overflowCount}`;
+}
+
+$("#palette-tags-toggle").addEventListener("click", () => {
+  paletteTagsExpanded = !paletteTagsExpanded;
+  renderPaletteTags();
+  paletteInput.focus();
+});
 
 function openPalette() {
   paletteOverlay.hidden = false;
   paletteInput.value = "";
+  paletteTags.clear();
+  paletteTagsExpanded = false;
+  renderPaletteTags();
   paletteInput.focus();
   runSearch("");
 }
@@ -543,7 +759,7 @@ function closePalette() {
 }
 
 async function runSearch(q) {
-  const { results } = await api.search(q);
+  const { results } = await api.search(q, [...paletteTags]);
   paletteItems = results;
   paletteSel = 0;
   paletteResults.innerHTML = "";
@@ -587,12 +803,13 @@ paletteOverlay.addEventListener("click", (e) => {
 
 /* ---------- 新規ノート ---------- */
 const newOverlay = $("#new-overlay");
+let newTagPicker = null;
 
 function openNewDialog() {
   newOverlay.hidden = false;
   $("#new-title").value = "";
   $("#new-folder").value = "";
-  $("#new-tags").value = "";
+  newTagPicker = createTagPicker($("#new-tag-picker"));
   $("#new-title").focus();
 }
 function closeNewDialog() { newOverlay.hidden = true; }
@@ -601,7 +818,7 @@ async function createNote() {
   const title = $("#new-title").value.trim();
   if (!title) { $("#new-title").focus(); return; }
   const folder = $("#new-folder").value.trim();
-  const tags = $("#new-tags").value.split(",").map((t) => t.trim()).filter(Boolean);
+  const tags = newTagPicker ? newTagPicker.get() : [];
   try {
     const { path } = await api.create({ title, folder, tags });
     closeNewDialog();
@@ -700,15 +917,42 @@ async function renameNoteDialog(path) {
   }
 }
 
+/* タグ編集ダイアログ(チップ式ピッカー) */
+const tagsOverlay = $("#tags-overlay");
+let editTagPicker = null;
+let tagsResolve = null;
+
+function askTags(initial) {
+  return new Promise((resolve) => {
+    tagsResolve = resolve;
+    editTagPicker = createTagPicker($("#edit-tag-picker"), initial);
+    tagsOverlay.hidden = false;
+    editTagPicker.focus();
+  });
+}
+
+function closeTags(result) {
+  tagsOverlay.hidden = true;
+  if (tagsResolve) {
+    tagsResolve(result);
+    tagsResolve = null;
+  }
+}
+
+$("#tags-ok").addEventListener("click", () => closeTags(editTagPicker.get()));
+$("#tags-cancel").addEventListener("click", () => closeTags(null));
+tagsOverlay.addEventListener("click", (e) => { if (e.target === tagsOverlay) closeTags(null); });
+tagsOverlay.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.tagName === "INPUT") closeTags(editTagPicker.get());
+  if (e.key === "Escape") closeTags(null);
+});
+
 async function editTagsDialog(path) {
   try {
     const note = await api.note(path);
-    const tags = await askInput({
-      title: "タグを編集", label: "タグ(カンマ区切り。空欄で全削除)",
-      value: note.tags.join(", "), placeholder: "例: memo, idea",
-    });
+    const tags = await askTags(note.tags);
     if (tags == null) return;
-    await api.updateMeta(path, { tags: tags.split(",").map((t) => t.trim()).filter(Boolean) });
+    await api.updateMeta(path, { tags });
     toast("タグを更新しました");
     await refreshSidebar();
     if (currentPath === path) showNote(path);
@@ -849,7 +1093,7 @@ document.addEventListener("keydown", (e) => {
   }
   if (e.key === "F2") {
     // ダイアログ表示中は何もしない
-    if (!inputOverlay.hidden || !paletteOverlay.hidden || !newOverlay.hidden || !folderOverlay.hidden) return;
+    if (!inputOverlay.hidden || !paletteOverlay.hidden || !newOverlay.hidden || !folderOverlay.hidden || !tagsOverlay.hidden) return;
     const target = selectedPaths.size === 1 ? [...selectedPaths][0] : currentPath;
     if (target) {
       e.preventDefault();
@@ -857,7 +1101,8 @@ document.addEventListener("keydown", (e) => {
     }
   }
   if (e.key === "Escape") {
-    if (!paletteOverlay.hidden) closePalette();
+    if (!tagColorPop.hidden) tagColorPop.hidden = true;
+    else if (!paletteOverlay.hidden) closePalette();
     else if (selectedPaths.size) clearSelection();
   }
 });

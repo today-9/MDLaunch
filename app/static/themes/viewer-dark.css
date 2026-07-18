@@ -15,6 +15,20 @@
 }
 #topbar { background: rgba(25, 25, 25, 0.85); }
 #palette, #new-dialog { box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); }
+
+/* タグの色(ダーク用トーン) */
+[data-tc="gray"]   { --tc-fg: #b3b3ae; --tc-bg: rgba(255, 255, 255, 0.10); }
+[data-tc="brown"]  { --tc-fg: #c4998b; --tc-bg: rgba(159, 107, 83, 0.28); }
+[data-tc="orange"] { --tc-fg: #e8a268; --tc-bg: rgba(217, 115, 13, 0.22); }
+[data-tc="yellow"] { --tc-fg: #e0c185; --tc-bg: rgba(203, 145, 47, 0.22); }
+[data-tc="green"]  { --tc-fg: #7fbc9c; --tc-bg: rgba(68, 131, 97, 0.26); }
+[data-tc="teal"]   { --tc-fg: #7fbfba; --tc-bg: rgba(58, 133, 128, 0.26); }
+[data-tc="blue"]   { --tc-fg: #7cb4d4; --tc-bg: rgba(51, 126, 169, 0.26); }
+[data-tc="indigo"] { --tc-fg: #a0a8e8; --tc-bg: rgba(100, 112, 195, 0.30); }
+[data-tc="purple"] { --tc-fg: #bfa0dc; --tc-bg: rgba(144, 101, 176, 0.30); }
+[data-tc="pink"]   { --tc-fg: #dfa0c3; --tc-bg: rgba(193, 76, 138, 0.26); }
+[data-tc="red"]    { --tc-fg: #eb9b97; --tc-bg: rgba(212, 76, 71, 0.26); }
+.pill[data-tc]:hover, .tcp-swatch:hover { filter: brightness(1.15); }
 .md code { color: #ff7b72; }
 .md .codehilite, .md pre > code { color: #f8f8f2; }
 .md blockquote { border-left-color: rgba(255, 255, 255, 0.6); }

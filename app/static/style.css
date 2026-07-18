@@ -148,6 +148,93 @@ input { font-family: inherit; }
 .tag-item:hover { background: var(--hover); }
 .tag-item.current { background: var(--active); color: var(--text); }
 .tag-item .cnt { margin-left: auto; color: var(--text-faint); font-size: 12px; }
+.tag-item .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ===== タグの色パレット =====
+   Notion 調の淡色トーン。ダークテーマは viewer-dark.css で上書きする */
+[data-tc="gray"]   { --tc-fg: #787774; --tc-bg: #f1f0ef; }
+[data-tc="brown"]  { --tc-fg: #9f6b53; --tc-bg: #f3eeee; }
+[data-tc="orange"] { --tc-fg: #d9730d; --tc-bg: #faebdd; }
+[data-tc="yellow"] { --tc-fg: #b98a24; --tc-bg: #fbf3db; }
+[data-tc="green"]  { --tc-fg: #448361; --tc-bg: #edf3ec; }
+[data-tc="teal"]   { --tc-fg: #3a8580; --tc-bg: #e3f0ee; }
+[data-tc="blue"]   { --tc-fg: #337ea9; --tc-bg: #e7f3f8; }
+[data-tc="indigo"] { --tc-fg: #6470c3; --tc-bg: #ebedf8; }
+[data-tc="purple"] { --tc-fg: #9065b0; --tc-bg: #f4f0f8; }
+[data-tc="pink"]   { --tc-fg: #c14c8a; --tc-bg: #faf1f5; }
+[data-tc="red"]    { --tc-fg: #d44c47; --tc-bg: #fdebec; }
+
+.pill[data-tc] { background: var(--tc-bg); color: var(--tc-fg); font-weight: 500; }
+.pill[data-tc]:hover { background: var(--tc-bg); filter: brightness(0.96); }
+
+/* サイドバーの色ドット */
+.tag-dot {
+  width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0;
+  background: var(--tc-fg, var(--text-faint));
+  opacity: 0.9;
+}
+
+/* 色選択ポップオーバー */
+#tag-color-pop {
+  position: fixed; z-index: 150;
+  background: var(--bg);
+  border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(15, 15, 15, 0.2);
+  padding: 8px;
+}
+#tag-color-pop .tcp-title {
+  font-size: 12px; color: var(--text-light); font-weight: 600;
+  padding: 0 2px 6px;
+  max-width: 168px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#tag-color-pop .tcp-grid {
+  display: grid; grid-template-columns: repeat(4, 36px); gap: 6px;
+}
+.tcp-swatch {
+  width: 36px; height: 30px; border-radius: 6px;
+  background: var(--tc-bg, var(--pill-bg));
+  color: var(--tc-fg, var(--text-faint));
+  font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid transparent;
+}
+.tcp-swatch:hover { filter: brightness(0.95); }
+.tcp-swatch.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg); }
+
+/* ===== タグ入力ピッカー(新規ノート・タグ編集) ===== */
+.tag-picker { margin: 4px 0 12px; }
+#new-dialog label:has(+ .tag-picker) { margin-bottom: 0; }
+.tp-box {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg);
+  cursor: text;
+}
+.tag-picker.focused .tp-box { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg); }
+.tp-box input {
+  flex: 1; min-width: 120px;
+  border: none !important; outline: none; box-shadow: none !important;
+  font-size: 14px; color: var(--text);
+  background: transparent;
+  padding: 2px 0 !important; margin: 0 !important;
+  display: inline-block !important; width: auto !important;
+}
+.tp-chip { display: inline-flex; align-items: center; gap: 3px; cursor: default; }
+.tp-chip .tp-x {
+  font-size: 13px; line-height: 1; color: inherit; opacity: 0.55;
+  padding: 0 1px; border-radius: 3px;
+}
+.tp-chip .tp-x:hover { opacity: 1; }
+.tp-avail {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  margin-top: 8px;
+  max-height: 110px; overflow-y: auto;
+}
+.pill .tp-cnt { margin-left: 5px; opacity: 0.6; font-size: 11px; }
+.tp-empty { font-size: 12px; color: var(--text-faint); padding: 2px 0; }
+.tp-hint { font-size: 11.5px; color: var(--text-faint); margin-top: 6px; }
 
 /* ノートメニュー・設定ポップオーバー */
 #note-menu, #folder-menu, #settings-pop {
@@ -409,7 +496,7 @@ input { font-family: inherit; }
 .empty-state .big { font-size: 48px; margin-bottom: 12px; }
 
 /* ===== 検索パレット ===== */
-#palette-overlay, #new-overlay, #folder-overlay {
+#palette-overlay, #new-overlay, #folder-overlay, #tags-overlay {
   position: fixed; inset: 0; z-index: 100;
   background: rgba(15, 15, 15, 0.35);
   display: flex; justify-content: center;
@@ -435,6 +522,31 @@ input { font-family: inherit; }
   font-size: 17px; color: var(--text);
   background: transparent;
 }
+#palette-tags {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 8px 12px 2px;
+  flex-shrink: 0;
+}
+#palette-tags-chips {
+  flex: 1; min-width: 0;
+  display: flex; flex-wrap: wrap; gap: 5px;
+  max-height: 24px; overflow: hidden;   /* 折りたたみ時は1行だけ */
+}
+#palette-tags.expanded #palette-tags-chips { max-height: 128px; overflow-y: auto; }
+#palette-tags-toggle {
+  flex-shrink: 0;
+  font-size: 11.5px; color: var(--text-faint);
+  padding: 3px 8px; border-radius: 4px;
+  white-space: nowrap;
+}
+#palette-tags-toggle:hover { background: var(--hover); color: var(--text); }
+#palette-tags .pill { opacity: 0.75; }
+#palette-tags .pill:hover { opacity: 1; }
+#palette-tags .pill.on {
+  opacity: 1;
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+  font-weight: 600;
+}
 #palette-results { overflow-y: auto; padding: 6px; }
 .palette-item {
   display: flex; align-items: baseline; gap: 10px;
@@ -456,14 +568,14 @@ input { font-family: inherit; }
   background: rgba(15, 15, 15, 0.35);
   display: flex; justify-content: center;
 }
-#new-dialog, #folder-dialog, #input-dialog {
+#new-dialog, #folder-dialog, #input-dialog, #tags-dialog {
   margin-top: 18vh;
   width: min(460px, 90vw); height: fit-content;
   background: var(--bg); border-radius: 10px;
   box-shadow: 0 20px 60px rgba(15, 15, 15, 0.3);
   padding: 22px;
 }
-#new-dialog h3, #folder-dialog h3, #input-dialog h3 { font-size: 17px; margin-bottom: 14px; }
+#new-dialog h3, #folder-dialog h3, #input-dialog h3, #tags-dialog h3 { font-size: 17px; margin-bottom: 14px; }
 #new-dialog label, #folder-dialog label, #input-dialog label {
   display: block; font-size: 12.5px; color: var(--text-light);
   margin-bottom: 12px; font-weight: 500;
@@ -490,8 +602,8 @@ input { font-family: inherit; }
 @media print {
   #sidebar, #topbar, #offline-banner, #stale-banner, #toast,
   .copy-btn, .backlinks, .page-meta,
-  #palette-overlay, #new-overlay, #folder-overlay,
-  #input-overlay, #note-menu, #folder-menu, #settings-pop { display: none !important; }
+  #palette-overlay, #new-overlay, #folder-overlay, #tags-overlay,
+  #input-overlay, #note-menu, #folder-menu, #settings-pop, #tag-color-pop { display: none !important; }
   #app { display: block; height: auto; }
   #main { overflow: visible; }
   #content { max-width: 100%; padding: 0; }

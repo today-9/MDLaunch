@@ -1,6 +1,7 @@
 """Vault: .md ファイル群の読み込み・インデックス・検索・レンダリング"""
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -20,6 +21,12 @@ from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import get_lexer_by_name
 from pygments.util import ClassNotFound
+
+# タグに付けられる色名(style.css の [data-tc=…] と対応)
+TAG_COLOR_NAMES = {
+    "gray", "brown", "orange", "yellow", "green", "teal",
+    "blue", "indigo", "purple", "pink", "red",
+}
 
 WIKILINK_RE = re.compile(r"\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]")
 # コードブロック・インラインコードを保護するための分割(奇数番目がコード)
@@ -186,11 +193,11 @@ class Vault:
 
     # ---------- 検索 ----------
 
-    def search(self, query: str, tag: str | None = None) -> list[dict]:
+    def search(self, query: str, tags: list[str] | None = None) -> list[dict]:
         q = unicodedata.normalize("NFKC", query).lower()
         results = []
         for note in self.notes.values():
-            if tag and tag not in note.tags:
+            if tags and not all(t in note.tags for t in tags):
                 continue
             title_l = unicodedata.normalize("NFKC", note.title).lower()
             body_l = unicodedata.normalize("NFKC", note.body).lower()
@@ -282,7 +289,44 @@ class Vault:
         for note in self.notes.values():
             for t in note.tags:
                 counts[t] = counts.get(t, 0) + 1
-        return [{"tag": t, "count": c} for t, c in sorted(counts.items(), key=lambda x: (-x[1], x[0]))]
+        colors = self.tag_colors()
+        return [
+            {"tag": t, "count": c, "color": colors.get(t)}
+            for t, c in sorted(counts.items(), key=lambda x: (-x[1], x[0]))
+        ]
+
+    # ---------- タグの色 ----------
+    # 色はノート個別ではなく Vault 全体の属性なので、frontmatter ではなく
+    # vault/.mdlaunch/tags.json に {"colors": {"タグ名": "色名"}} で持つ
+
+    def _tags_meta_path(self) -> Path:
+        return self.root / ".mdlaunch" / "tags.json"
+
+    def tag_colors(self) -> dict[str, str]:
+        try:
+            data = json.loads(self._tags_meta_path().read_text(encoding="utf-8"))
+            colors = data.get("colors", {})
+            return {str(t): str(c) for t, c in colors.items() if c in TAG_COLOR_NAMES}
+        except (OSError, ValueError, AttributeError):
+            return {}
+
+    def set_tag_color(self, tag: str, color: str | None) -> None:
+        tag = tag.strip()
+        if not tag:
+            raise ValueError("empty tag")
+        if color and color not in TAG_COLOR_NAMES:
+            raise ValueError(f"unknown color: {color}")
+        colors = self.tag_colors()
+        if color:
+            colors[tag] = color
+        else:
+            colors.pop(tag, None)
+        path = self._tags_meta_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps({"colors": colors}, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
 
     # ---------- 作成・VSCode 連携 ----------
 

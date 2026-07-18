@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MDLaunch</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗂️</text></svg>">
-<link rel="stylesheet" href="/static/style.css?v=14">
+<link rel="stylesheet" href="/static/style.css?v=17">
 <link rel="stylesheet" href="/static/pygments.css?v=4">
 <link rel="stylesheet" href="/static/vendor/katex/katex.min.css">
 <link id="viewer-theme-css" rel="stylesheet" href="/static/themes/viewer-light.css">
@@ -92,6 +92,10 @@
       <span class="palette-glass">🔍</span>
       <input id="palette-input" type="text" placeholder="ノートを検索…" autocomplete="off">
     </div>
+    <div id="palette-tags" hidden>
+      <div id="palette-tags-chips"></div>
+      <button id="palette-tags-toggle" hidden></button>
+    </div>
     <div id="palette-results"></div>
   </div>
 </div>
@@ -102,7 +106,8 @@
     <h3>新規ノート</h3>
     <label>タイトル<input id="new-title" type="text" placeholder="ノートのタイトル"></label>
     <label>フォルダ(任意)<input id="new-folder" type="text" placeholder="例: projects/mdlaunch"></label>
-    <label>タグ(カンマ区切り・任意)<input id="new-tags" type="text" placeholder="例: memo, idea"></label>
+    <label>タグ(任意)</label>
+    <div id="new-tag-picker" class="tag-picker"></div>
     <div class="dialog-actions">
       <button id="new-cancel" class="btn">キャンセル</button>
       <button id="new-create" class="btn primary">作成して VSCode で開く</button>
@@ -123,6 +128,24 @@
   </div>
 </div>
 
+<!-- タグ編集ダイアログ -->
+<div id="tags-overlay" hidden>
+  <div id="tags-dialog">
+    <h3>タグを編集</h3>
+    <div id="edit-tag-picker" class="tag-picker"></div>
+    <div class="dialog-actions">
+      <button id="tags-cancel" class="btn">キャンセル</button>
+      <button id="tags-ok" class="btn primary">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- タグの色パレット(サイドバーのタグを右クリック) -->
+<div id="tag-color-pop" hidden>
+  <div class="tcp-title"></div>
+  <div class="tcp-grid"></div>
+</div>
+
 <!-- 新規フォルダダイアログ -->
 <div id="folder-overlay" hidden>
   <div id="folder-dialog">
@@ -139,6 +162,6 @@
 
 <script src="/static/vendor/mermaid.min.js"></script>
 <script src="/static/vendor/katex/katex.min.js"></script>
-<script src="/static/app.js?v=14"></script>
+<script src="/static/app.js?v=17"></script>
 </body>
 </html>
